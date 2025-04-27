@@ -87,6 +87,14 @@ local context do
         username = panorama.open().MyPersonaAPI.GetName()
     }
 
+    context.crosshair = {
+        offset = 0,
+        alpha_grenade = 1,
+        alpha_defensive = 0,
+        alpha_enable = 0,
+        offset_enable = 0
+    }
+
     callbacks:set('setup_command', function(cmd)
         if not (entity.get_local_player() and entity.is_alive(entity.get_local_player()) and entity.get_player_weapon(entity.get_local_player())) then
             return
@@ -478,11 +486,14 @@ do
             return
         end
 
-        if not context.local_player then
+        if context.local_player == nil then
             return
         end
         
         local self_index = c_entity(context.local_player)
+        if self_index == nil then
+            return
+        end
     
         for layer_idx, _ in pairs(self.data.layers) do
             local layer = self_index:get_anim_overlay(layer_idx)
@@ -2139,7 +2150,15 @@ do
             return
         end
 
+        if context.weapon == nil then
+            return
+        end
+
         local weapon_name = entity.get_classname(context.weapon)
+        if weapon_name == nil then
+            return
+        end
+
         local r, g, b, a = menu.general.visuals.widgets.crosshair_color:get()
         local better_render = render.new()
 
