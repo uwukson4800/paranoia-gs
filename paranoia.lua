@@ -87,14 +87,6 @@ local context do
         username = panorama.open().MyPersonaAPI.GetName()
     }
 
-    context.crosshair = {
-        offset = 0,
-        alpha_grenade = 1,
-        alpha_defensive = 0,
-        alpha_enable = 0,
-        offset_enable = 0
-    }
-
     callbacks:set('setup_command', function(cmd)
         if not (entity.get_local_player() and entity.is_alive(entity.get_local_player()) and entity.get_player_weapon(entity.get_local_player())) then
             return
