@@ -1,6 +1,6 @@
 -- @ uwukson4800 ~ t.me/debugoverlay
 
-_G._DEBUG = true
+_G._DEBUG = false
 local safe do safe = { } function safe:print(...) if _DEBUG then print('[DEBUG] ', ...) end end function safe:require(module_name) local status, module = pcall(require, module_name) if status then return module else self:print('error loading module "' .. module_name .. '": ' .. module) return nil end end function safe:call(func, ...) local args = { ... } local status, err = pcall(func, unpack(args)) if not status then self:print('error with ' .. func .. ' : ' .. err) end end client.set_event_callback('shutdown', function() if safe then safe = nil end if _DEBUG then _DEBUG = false end end) end
 
 local ffi      = safe:require 'ffi'
@@ -105,6 +105,82 @@ local context do
     end)
 end
 
+local interfaces do
+    interfaces = { }
+
+    interfaces.material_system_hardware_config = { }
+    do
+        local native_SetHdrEnabled = vtable_bind('materialsystem.dll', 'MaterialSystemHardwareConfig013', 50, 'void(__thiscall*)(void*, bool)')
+
+        function interfaces.material_system_hardware_config:set_hdr_enabled(active)
+            native_SetHdrEnabled(active)
+        end
+    end
+
+    interfaces.input = { }
+    do
+        ffi.cdef[[
+            typedef unsigned long crc32_t;
+            
+            typedef struct {
+                float x, y, z;
+            } vector3d;
+
+            typedef struct {
+                int command_number;
+                int tickcount;
+                vector3d viewangles;
+                vector3d aimdirection;
+                float forwardmove;
+                float sidemove;
+                float upmove;
+                int buttons;
+                char impulse;
+                int weaponselect;
+                int weaponsubtype;
+                int random_seed;
+                short mousedx;
+                short mousedy;
+                bool predicted;
+                char pad[0x18];
+            } c_usercmd_t;
+
+            typedef struct {
+                c_usercmd_t cmd;
+                crc32_t crc;
+            } verified_cmd_t;
+
+            typedef struct {
+                char pad_1[0xC];
+                bool trackir_available;
+                bool mouse_initialized;
+                bool mouse_active;
+                char pad_2[0x9A];
+                bool camera_in_third_person;
+                char pad_3[0x2];
+                vector3d camera_offset;
+                char pad_4[0x38];
+                c_usercmd_t* commands;
+                verified_cmd_t* verified_commands;
+            } c_input;
+        ]]
+
+        local input_pattern = utils:opcode_scan('client.dll', 'B9 ? ? ? ? F3 0F 11 04 24 FF 50 10', 1)
+  
+        function interfaces.input:get()
+            return ffi.cast('c_input**', ffi.cast('char*', input_pattern))[0]
+        end
+
+        function interfaces.input:thirdperson()
+            return self:get().camera_in_third_person
+        end
+
+        function interfaces.input:predicted()
+            return self:get().commands[0].predicted
+        end
+    end
+end
+
 local menu do
     menu = { }
 
@@ -127,22 +203,22 @@ local menu do
                 distance = gui.slider('Thirdperson distance', 30, 180, 100, true, '', 1, { [100] = 'Default' } ),
             },
 
+            accent_color_text = gui.label('Accent Color'),
+            accent_color = gui.color_picker('Accent Color'),
+
             ['viewmodel'] = {
                 in_scope = gui.switch('Viewmodel in scope')
             },
 
             ['scope'] = {
                 enabled = gui.switch('Custom scope overlay'),
-                color = gui.color_picker('Custom scope overlay'),
                 gap = gui.slider('Scope gap', 0, 50, 5, true, 'px'),
                 size = gui.slider('Scope size', 15, 300, 30, true, 'px')
             },
 
             ['widgets'] = {
                 watermark = gui.switch('Watermark'),
-                watermark_color = gui.color_picker('Watermark Color'),
                 crosshair = gui.switch('Center Indicators'),
-                crosshair_color = gui.color_picker('Center Indicators Color'),
     
     
                 ['metrics'] = {
@@ -193,20 +269,20 @@ do
         do
             local current_tab = menu.general.tabs:get()
 
+            menu.general.visuals.accent_color_text:visibility(current_tab == '• Visuals')
+            menu.general.visuals.accent_color:visibility(current_tab == '• Visuals')
+
             menu.general.visuals.thirdperson.distance:visibility(current_tab == '• Visuals')
 
             menu.general.visuals.viewmodel.in_scope:visibility(current_tab == '• Visuals')
 
             menu.general.visuals.scope.enabled:visibility(current_tab == '• Visuals')
-            menu.general.visuals.scope.color:visibility(current_tab == '• Visuals' and menu.general.visuals.scope.enabled:get())
             menu.general.visuals.scope.gap:visibility(current_tab == '• Visuals' and menu.general.visuals.scope.enabled:get())
             menu.general.visuals.scope.size:visibility(current_tab == '• Visuals' and menu.general.visuals.scope.enabled:get())
 
             menu.general.visuals.widgets.watermark:visibility(current_tab == '• Visuals')
-            menu.general.visuals.widgets.watermark_color:visibility(current_tab == '• Visuals' and menu.general.visuals.widgets.watermark:get())
             
             menu.general.visuals.widgets.crosshair:visibility(current_tab == '• Visuals')
-            menu.general.visuals.widgets.crosshair_color:visibility(current_tab == '• Visuals' and menu.general.visuals.widgets.crosshair:get())
 
             menu.general.visuals.widgets.metrics.enable:visibility(current_tab == '• Visuals')
 
@@ -769,7 +845,7 @@ do
             return
         end
         
-        local scope_r, scope_g, scope_b, scope_a = menu.general.visuals.scope.color:get()
+        local scope_r, scope_g, scope_b, scope_a = menu.general.visuals.accent_color:get()
         local gap = menu.general.visuals.scope.gap:get()
         
         local screen_x, screen_y = context.screen_size.x(), context.screen_size.y()
@@ -2038,7 +2114,7 @@ do
         local better_render = render.new()
         local screen = vector(context.screen_size.x(), context.screen_size.y())
     
-        local r, g, b, a = menu.general.visuals.widgets.watermark_color:get()
+        local r, g, b, a = menu.general.visuals.accent_color:get()
         local text_color = render.color(255, 255, 255, math.floor(255 * watermark.data.alpha))
         local accent_color = render.color(r, g, b, math.floor(a * watermark.data.alpha))
     
@@ -2070,7 +2146,7 @@ do
             script_text
         )
     
-        local info_text = string.format('%s ~ \ac8c8c8fe  %s', context.information.username, _DEBUG and 'debug' or 'release')
+        local info_text = string.format('%s ~ \ac8c8c8fe%s', context.information.username, _DEBUG and 'debug' or 'release')
         local info_width = renderer.measure_text('', info_text) + 20
         
         better_render:rectangle_round('info', 
@@ -2151,7 +2227,7 @@ do
             return
         end
 
-        local r, g, b, a = menu.general.visuals.widgets.crosshair_color:get()
+        local r, g, b, a = menu.general.visuals.accent_color:get()
         local better_render = render.new()
 
         local screen = vector(context.screen_size.x() / 2, context.screen_size.y() / 2)
