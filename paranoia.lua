@@ -5,9 +5,7 @@ local safe do safe = { } function safe:print(...) if _DEBUG then print('[DEBUG] 
 
 local ffi      = safe:require 'ffi'
 local bit      = safe:require 'bit'
-local json     = safe:require 'json'
 local vector   = safe:require 'vector'
-local trace    = safe:require 'gamesense/trace'
 local c_entity = safe:require 'gamesense/entity'
 local csgo_weapons = safe:require 'gamesense/csgo_weapons'
 
