@@ -240,7 +240,8 @@ local menu do
             ['ambient'] = {
                 wall_dyeing = gui.switch('Wall Dyeing'),
                 wall_dyeing_color = gui.color_picker('Wall Dyeing Color'),
-                model_ambient = gui.slider('Model Brightness', 0, 100, 0)
+                model_ambient = gui.slider('Model Brightness', 0, 100, 0),
+                force_hdr = gui.switch('Force HDR')
             },
 
             ['removals'] = {
@@ -302,6 +303,8 @@ do
             menu.general.world.ambient.wall_dyeing_color:visibility(current_tab == '• World' and menu.general.world.ambient.wall_dyeing:get())
             menu.general.world.ambient.model_ambient:visibility(current_tab == '• World' and menu.general.world.ambient.wall_dyeing:get())
 
+            menu.general.world.ambient.force_hdr:visibility(current_tab == '• World')
+
             menu.general.world.removals.blood:visibility(current_tab == '• World')
             menu.general.world.removals.ragdolls:visibility(current_tab == '• World')
         end
@@ -322,12 +325,42 @@ do
         end
     end
 
+    local force_hdr = ui.reference('LUA', 'A', 'Force HDR')
+    ui.set(force_hdr, interfaces.material_system_hardware_config:get_hdr_enabled()) -- cringe =(
+
     callbacks:set('paint_ui', function()
         menu_visibility(false)
     end)
 
     callbacks:set('shutdown', function()
         menu_visibility(true)
+    end)
+end
+
+-- @ force hdr [ needfix ]
+do
+    local forcehdr = { }
+
+    function forcehdr:run()
+        if not menu.general.world.ambient.force_hdr:get() then
+            if interfaces.material_system_hardware_config:get_hdr_enabled() then
+                interfaces.material_system_hardware_config:set_hdr_enabled(false)
+                return
+            else
+               return 
+            end
+        else
+            if not interfaces.material_system_hardware_config:get_hdr_enabled() then
+                interfaces.material_system_hardware_config:set_hdr_enabled(true)
+                return
+            else
+                return
+            end
+        end
+    end
+
+    callbacks:set('paint_ui', function()
+        forcehdr:run()
     end)
 end
 
