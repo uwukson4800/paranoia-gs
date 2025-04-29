@@ -185,8 +185,6 @@ local interfaces do
     end
 end
 
-print(interfaces.material_system_hardware_config:is_dx10_card())
-
 local menu do
     menu = { }
 
