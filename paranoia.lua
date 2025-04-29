@@ -7,8 +7,6 @@ local ffi      = safe:require 'ffi'
 local bit      = safe:require 'bit'
 local json     = safe:require 'json'
 local vector   = safe:require 'vector'
-local http     = safe:require 'gamesense/http'
-local base64   = safe:require 'gamesense/base64'
 local trace    = safe:require 'gamesense/trace'
 local c_entity = safe:require 'gamesense/entity'
 local csgo_weapons = safe:require 'gamesense/csgo_weapons'
@@ -108,19 +106,19 @@ end
 local interfaces do
     interfaces = { }
 
+    -- https://github.com/perilouswithadollarsign/cstrike15_src/blob/f82112a2388b841d72cb62ca48ab1846dfcc11c8/materialsystem/mat_stub.cpp#L449
     interfaces.material_system_hardware_config = { }
     do
         local native_SetHdrEnabled = vtable_bind('materialsystem.dll', 'MaterialSystemHardwareConfig013', 50, 'void(__thiscall*)(void*, bool)')
-	local native_GetHdrEnabled = vtable_bind('materialsystem.dll', 'MaterialSystemHardwareConfig013', 49, 'bool(__thiscall*)(void*)')
+	    local native_GetHdrEnabled = vtable_bind('materialsystem.dll', 'MaterialSystemHardwareConfig013', 49, 'bool(__thiscall*)(void*)')
 
         function interfaces.material_system_hardware_config:set_hdr_enabled(active)
             native_SetHdrEnabled(active)
         end
 
-	function interfaces.material_system_hardware_config:get_hdr_enabled()
+	    function interfaces.material_system_hardware_config:get_hdr_enabled()
             return native_GetHdrEnabled()
         end
-
     end
 
     interfaces.input = { }
@@ -149,12 +147,12 @@ local interfaces do
                 short mousedy;
                 bool predicted;
                 char pad[0x18];
-            } c_usercmd_t;
+            } c_usercmd;
 
             typedef struct {
-                c_usercmd_t cmd;
+                c_usercmd cmd;
                 crc32_t crc;
-            } verified_cmd_t;
+            } c_verified_usercmd;
 
             typedef struct {
                 char pad_1[0xC];
@@ -166,8 +164,8 @@ local interfaces do
                 char pad_3[0x2];
                 vector3d camera_offset;
                 char pad_4[0x38];
-                c_usercmd_t* commands;
-                verified_cmd_t* verified_commands;
+                c_usercmd* commands;
+                c_verified_usercmd* verified_commands;
             } c_input;
         ]]
 
@@ -186,6 +184,8 @@ local interfaces do
         end
     end
 end
+
+print(interfaces.material_system_hardware_config:is_dx10_card())
 
 local menu do
     menu = { }
@@ -2005,7 +2005,7 @@ do
     callbacks:set('paint_ui', function()
         if not ui.is_menu_open() then
 			if clean then
-				collectgarbage()
+                collectgarbage()
 
 				clean = false
 			end
