@@ -181,6 +181,48 @@ local interfaces do
             return self:get().commands[0].predicted
         end
     end
+
+    interfaces.engine = { }
+    do
+        local native_ConsoleOpened = vtable_bind('engine.dll', 'VEngineClient014', 11, 'bool(__thiscall*)(void*)')
+        local native_IsInGame = vtable_bind('engine.dll', 'VEngineClient014', 26, 'bool(__thiscall*)(void*)')
+        local native_IsConnected = vtable_bind('engine.dll', 'VEngineClient014', 27, 'bool(__thiscall*)(void*)')
+        local native_FireEvents = vtable_bind('engine.dll', 'VEngineClient014', 58, 'void(__thiscall*)(void*)')
+
+        function interfaces.engine:console_opened()
+            return native_ConsoleOpened()
+        end
+
+        function interfaces.engine:is_in_game()
+            return native_IsInGame()
+        end
+
+        function interfaces.engine:is_connected()
+            return native_IsConnected()
+        end
+
+        function interfaces.engine:fire_events()
+            native_FireEvents()
+        end
+    end
+
+    interfaces.model_render = { }
+    do
+        local native_SuppressEngineLighting = vtable_bind('engine.dll', 'VEngineModel016', 24, 'void(__thiscall*)(void*, bool)')
+
+        function interfaces.model_render:suppress_engine_lighting(suppress)
+            native_SuppressEngineLighting(suppress)
+        end
+    end
+
+    interfaces.gameui = { }
+    do
+        local native_CreateCommandMsgBox = vtable_bind('client.dll', 'GameUI011', 19, 'void(__thiscall*)(void*, const char*, const char*, bool, bool, const char*, const char*, const char*, const char*, const char*)')
+
+        function interfaces.gameui:create_command_msgbox(title, message, show_ok, show_cancel, ok_command, cancel_command, closed_command, custombuttontext, legend)
+            native_CreateCommandMsgBox(title, message, show_ok or true, show_cancel or false, ok_command or nil, (not cancel_command) and (ok_command or nil) or nil, closed_command or nil, custombuttontext or nil, legend or nil)
+        end
+    end
 end
 
 local menu do
@@ -344,6 +386,7 @@ do
     function forcehdr:run()
         if not menu.general.world.ambient.force_hdr:get() then
             if interfaces.material_system_hardware_config:get_hdr_enabled() then
+                interfaces.model_render:suppress_engine_lighting(true)
                 interfaces.material_system_hardware_config:set_hdr_enabled(false)
                 return
             else
@@ -351,6 +394,7 @@ do
             end
         else
             if not interfaces.material_system_hardware_config:get_hdr_enabled() then
+                interfaces.model_render:suppress_engine_lighting(false)
                 interfaces.material_system_hardware_config:set_hdr_enabled(true)
                 return
             else
@@ -934,9 +978,8 @@ do
         height = 0
     }
 
-    local native_IsConnected = vtable_bind('engine.dll', 'VEngineClient014', 27, 'bool(__thiscall*)(void*)')
     function metrics:is_connected()
-        return native_IsConnected()
+        return interfaces.engine:is_in_game()
     end
     
     local function network_metrics()
@@ -2316,4 +2359,9 @@ do
     callbacks:set('paint_ui', function()
         crosshair:render()
     end)
+end
+
+-- @ lol
+do
+    interfaces.gameui:create_command_msgbox(context.information.script, 't.me/debugoverlay', true)
 end
