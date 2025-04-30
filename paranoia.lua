@@ -2024,6 +2024,12 @@ do
     cvar.cl_foot_contact_shadows:set_int(0)
 end
 
+-- @ remove shadows
+do
+    cvar.cl_csm_entity_shadows:set_int(0)
+    cvar.cl_csm_shadows:set_int(0)
+end
+
 -- @ remove alert
 do
     -- https://github.com/sapphyrus/panorama/blob/f8530fa796bf58699388f5fe7a69cd4ffc594258/scripts/mainmenu.js#L1161
