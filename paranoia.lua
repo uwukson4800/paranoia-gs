@@ -434,7 +434,7 @@ do
         local max_speed = 250
 
         if context.weapon then
-            local weapon_type = entity.get_prop(context.weapon, "m_iItemDefinitionIndex")
+            local weapon_type = entity.get_prop(context.weapon, 'm_iItemDefinitionIndex')
 
             if weapon_type == 9 then -- AWP
                 max_speed = 200
@@ -442,7 +442,7 @@ do
                 max_speed = 230
             end
 
-            local is_scoped = entity.get_prop(context.local_player, "m_bIsScoped") == 1
+            local is_scoped = entity.get_prop(context.local_player, 'm_bIsScoped') == 1
             if is_scoped then
                 max_speed = max_speed * 0.75
             end
@@ -494,26 +494,8 @@ do
             entity.set_prop(context.local_player, 'm_flPoseParameter', 1, 6)
         end
 
-        if falling_animations == 'Legacy' then
-            local leg_value = 0
-
-            if velocity > 0 then
-                if on_ground then -- no sense
-                    local normalized_speed = math.min(velocity / 250, 1)
-                    leg_value = 0.5 + (normalized_speed * 0.5)
-                else
-                    leg_value = 1.0 - math.min(velocity / 320, 1) * 0.5
-                end
-            end
-
-            local current_value = entity.get_prop(context.local_player, 'm_flPoseParameter', 6)
-            if current_value then
-                leg_value = current_value + (leg_value - current_value) * 0.2
-            end
-            
-            leg_value = math.max(0, math.min(1, leg_value))
-            
-            entity.set_prop(context.local_player, 'm_flPoseParameter', leg_value, 6)
+        if falling_animations == 'Legacy' then -- [ needfix ]
+            entity.set_prop(context.local_player, 'm_flPoseParameter', 0.35, 6)
         end
 
         if array_string(animations_select, 'Disable Move Lean') ~= nil then
@@ -911,7 +893,7 @@ do
     
         ui.set(context.refs.visuals.scope_overlay, false)
     
-        local scoped = entity.get_prop(context.local_player, "m_bIsScoped") == 1
+        local scoped = entity.get_prop(context.local_player, 'm_bIsScoped') == 1
 
         local target_size = scoped and menu.general.visuals.scope.size:get() or 0
 
@@ -1851,14 +1833,14 @@ do
     
         for i = 1, globals.maxplayers() do
             repeat
-                if entity.get_prop(player_resource, "m_bConnected", i) == 0 then
+                if entity.get_prop(player_resource, 'm_bConnected', i) == 0 then
                     if main_data_table.users[i] then
                         main_data_table.users[i] = nil
                     end
     
                     break
                 else
-                    local flags = entity.get_prop(i, "m_fFlags")
+                    local flags = entity.get_prop(i, 'm_fFlags')
                     if not flags then
                         break
                     end
