@@ -119,6 +119,7 @@ local interfaces do
         end
     end
 
+    -- https://github.com/tickcount/cstrike15_src/blob/f82112a2388b841d72cb62ca48ab1846dfcc11c8/game/client/input.h#L51
     interfaces.input = { }
     do
         ffi.cdef[[
@@ -182,15 +183,24 @@ local interfaces do
         end
     end
 
+    -- https://github.com/tickcount/cstrike15_src/blob/f82112a2388b841d72cb62ca48ab1846dfcc11c8/engine/cdll_engine_int.cpp#L341
     interfaces.engine = { }
     do
         local native_ConsoleOpened = vtable_bind('engine.dll', 'VEngineClient014', 11, 'bool(__thiscall*)(void*)')
+        local native_GetLocalPlayer = vtable_bind('engine.dll', 'VEngineClient014', 12, 'int(__thiscall*)(void*)')
         local native_IsInGame = vtable_bind('engine.dll', 'VEngineClient014', 26, 'bool(__thiscall*)(void*)')
         local native_IsConnected = vtable_bind('engine.dll', 'VEngineClient014', 27, 'bool(__thiscall*)(void*)')
+        local native_IsDrawingLoadingImage = vtable_bind('engine.dll', 'VEngineClient014', 28, 'bool(__thiscall*)(void*)')
+        local native_HideLoadingPlaque = vtable_bind('engine.dll', 'VEngineClient014', 29, 'void(__thiscall*)(void*)')
+        local native_GetGameDirectory = vtable_bind('engine.dll', 'VEngineClient014', 36, 'const char*(__thiscall*)(void*)')
         local native_FireEvents = vtable_bind('engine.dll', 'VEngineClient014', 58, 'void(__thiscall*)(void*)')
 
         function interfaces.engine:console_opened()
             return native_ConsoleOpened()
+        end
+
+        function interfaces.engine:get_local_player()
+            return native_GetLocalPlayer()
         end
 
         function interfaces.engine:is_in_game()
@@ -201,11 +211,24 @@ local interfaces do
             return native_IsConnected()
         end
 
+        function interfaces.engine:is_drawing_loading_image()
+            return native_IsDrawingLoadingImage()
+        end
+
+        function interfaces.engine:hide_loading_plaque()
+            native_HideLoadingPlaque()
+        end
+
+        function interfaces.engine:get_game_directory()
+            return ffi.string(native_GetGameDirectory())
+        end
+
         function interfaces.engine:fire_events()
             native_FireEvents()
         end
     end
 
+    -- https://github.com/tickcount/cstrike15_src/blob/f82112a2388b841d72cb62ca48ab1846dfcc11c8/engine/l_studio.cpp#L740
     interfaces.model_render = { }
     do
         local native_SuppressEngineLighting = vtable_bind('engine.dll', 'VEngineModel016', 24, 'void(__thiscall*)(void*, bool)')
@@ -215,12 +238,28 @@ local interfaces do
         end
     end
 
+    -- https://github.com/tickcount/cstrike15_src/blob/f82112a2388b841d72cb62ca48ab1846dfcc11c8/game/client/cstrike15/gameui/gameui_interface.h#L38
     interfaces.gameui = { }
     do
         local native_CreateCommandMsgBox = vtable_bind('client.dll', 'GameUI011', 19, 'void(__thiscall*)(void*, const char*, const char*, bool, bool, const char*, const char*, const char*, const char*, const char*)')
 
         function interfaces.gameui:create_command_msgbox(title, message, show_ok, show_cancel, ok_command, cancel_command, closed_command, custombuttontext, legend)
             native_CreateCommandMsgBox(title, message, show_ok or true, show_cancel or false, ok_command or nil, (not cancel_command) and (ok_command or nil) or nil, closed_command or nil, custombuttontext or nil, legend or nil)
+        end
+    end
+
+    -- https://github.com/tickcount/cstrike15_src/blob/f82112a2388b841d72cb62ca48ab1846dfcc11c8/engine/view.cpp#L272
+    interfaces.render_view = { }
+    do
+        local native_SetBlend = vtable_bind('engine.dll', 'VEngineRenderView014', 4, 'void(__thiscall*)(void*, float)')
+        local native_GetBlend = vtable_bind('engine.dll', 'VEngineRenderView014', 5, 'float(__thiscall*)(void*)')
+
+        function interfaces.render_view:set_blend(alpha)
+            native_SetBlend(alpha)
+        end
+        
+        function interfaces.render_view:get_blend()
+            return native_GetBlend()
         end
     end
 end
