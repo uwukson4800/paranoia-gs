@@ -108,13 +108,13 @@ local interfaces do
     interfaces.material_system_hardware_config = { }
     do
         local native_SetHdrEnabled = vtable_bind('materialsystem.dll', 'MaterialSystemHardwareConfig013', 50, 'void(__thiscall*)(void*, bool)')
-	local native_GetHdrEnabled = vtable_bind('materialsystem.dll', 'MaterialSystemHardwareConfig013', 49, 'bool(__thiscall*)(void*)')
+        local native_GetHdrEnabled = vtable_bind('materialsystem.dll', 'MaterialSystemHardwareConfig013', 49, 'bool(__thiscall*)(void*)')
 
         function interfaces.material_system_hardware_config:set_hdr_enabled(active)
             native_SetHdrEnabled(active)
         end
-
-	function interfaces.material_system_hardware_config:get_hdr_enabled()
+        
+        function interfaces.material_system_hardware_config:get_hdr_enabled()
             return native_GetHdrEnabled()
         end
     end
@@ -2294,9 +2294,22 @@ do
     local crosshair = { }
     crosshair.data = {
         offset = 0,
+        offset_ind = 0,
         alpha = 255,
-        indicators = {}
+        indicators = {},
+        anim = {},
+        recharge_anim = 0,
+        recharge_tickness = 2,
+
+        other = {},
+        anim_other = {},
     }
+
+    local function get_accent_color(alpha)
+        local accent = { menu.general.visuals.accent_color:get() }
+        alpha = alpha or accent[4]
+        return render.color(accent[1], accent[2], accent[3], alpha)
+    end
 
     function crosshair:add_indicator(id, text, condition_fn)
         table.insert(self.data.indicators, {
@@ -2304,15 +2317,32 @@ do
             text = text,
             condition = condition_fn
         })
+
+        self.data.anim[id] = 0
     end
 
-    crosshair:add_indicator('dt', 'DT', 
+    function crosshair:add_other(id, text, condition_fn)
+        table.insert(self.data.other, {
+            id = id,
+            text = text,
+            condition = condition_fn
+        })
+        self.data.anim_other[id] = 0
+    end
+
+    crosshair:add_indicator('dt', 'doubletap', 
         function() return exploits:is_doubletap() end
     )
 
-    crosshair:add_indicator('hs', 'HS',
+    crosshair:add_indicator('hs', 'on-shot',
         function() return exploits:is_hideshots() end
     )
+
+    local function draw_recharge_circle(better_render, pos, radius, progress, color, thickness)
+        local start_angle = -90
+        local end_angle = start_angle + 360 * progress
+        better_render:circle_outline('dt_recharge', pos, color, radius, start_angle, progress, thickness)
+    end
 
     function crosshair:render()
         if not menu.general.visuals.widgets.crosshair:get() then
@@ -2341,48 +2371,111 @@ do
         local is_grenade = weapon_name:match('Grenade') ~= nil
 
         local target_offset = is_scoped and 50 or 0
+        local target_offset_ind = is_scoped and ((exploits:is_hideshots() and (not exploits:is_doubletap())) and 45 or 40) or 0 -- cringe =(
         local target_alpha = is_grenade and 150 or a
 
         self.data.offset = motion.lerp(self.data.offset, target_offset, globals.frametime() * 8)
+        self.data.offset_ind = motion.lerp(self.data.offset_ind, target_offset_ind, globals.frametime() * 8)
         self.data.alpha = motion.lerp(self.data.alpha, target_alpha, globals.frametime() * 8)
 
         if self.data.alpha < 1 then
             return
         end
 
-        better_render:text('script_name', 
-            vector(screen.x + self.data.offset, screen.y + 10), 
-            render.color(r, g, b, self.data.alpha),
+        local dt_active = self.data.indicators[1].condition()
+        local hs_active = self.data.indicators[2].condition()
+        local show_dt = dt_active
+        local show_hs = (not dt_active) and hs_active
+
+        local script_text = context.information.script
+        local script_width = renderer.measure_text('c', script_text)
+        better_render:text(
+            'script_name',
+            vector(screen.x + self.data.offset, screen.y + 10),
+            render.color(r, g, b, math.floor(self.data.alpha)),
             'c', 0,
-            string.format('%s ~ \ac8c8c8fe%s', context.information.script, _DEBUG and 'debug' or 'release')
+            script_text
         )
 
+        local main_indicators = {}
+        if show_dt then table.insert(main_indicators, self.data.indicators[1]) end
+        if show_hs then table.insert(main_indicators, self.data.indicators[2]) end
+
         local total_width = 0
-        for i, indicator in ipairs(self.data.indicators) do
+        for i, indicator in ipairs(main_indicators) do
             total_width = total_width + renderer.measure_text('c', indicator.text)
-            if i < #self.data.indicators then
-                total_width = total_width + 10
-            end
+            if i < #main_indicators then total_width = total_width + 10 end
         end
 
-        local x_offset = screen.x + self.data.offset - total_width/2
+        local x_offset = screen.x + self.data.offset_ind - total_width/2
         local y_pos = screen.y + 20
 
-        for _, indicator in ipairs(self.data.indicators) do
+        for i, indicator in ipairs(main_indicators) do
             local is_active = indicator.condition()
-            local text_width = renderer.measure_text('c', indicator.text)
+            local anim = self.data.anim[indicator.id] or 0
+            anim = is_active and math.min(anim + globals.frametime() * 6, 1) or math.max(anim - globals.frametime() * 6, 0)
+            self.data.anim[indicator.id] = anim
 
-            better_render:text(indicator.id, 
+            local color = render.color(r, g, b, self.data.alpha)
+            local text_width = renderer.measure_text('c', indicator.text)
+            local text_color = render.color(color.r, color.g, color.b, math.floor(self.data.alpha * (0.3 + 0.7 * anim)))
+
+            better_render:text(indicator.id,
                 vector(x_offset, y_pos),
-                render.color(r, g, b, self.data.alpha * (is_active and 1 or 0.3)),
-                '', 0,
+                text_color,
+                'b', 0,
                 indicator.text
             )
 
-            x_offset = x_offset + text_width + 10
+            if is_active then
+                local defensive = exploits:in_defensive()
+                local target_thickness = defensive and 3 or 1
+                self.data.recharge_tickness = motion.lerp(self.data.recharge_tickness, target_thickness, 0.2)
+                self.data.recharge_anim = motion.lerp(self.data.recharge_anim, exploits:in_recharge() and 0 or 1, 0.2)
+                local circle_pos = vector(x_offset + text_width + 5, y_pos + 7)
+                draw_recharge_circle(
+                    better_render,
+                    circle_pos,
+                    3,
+                    self.data.recharge_anim,
+                    get_accent_color(math.floor(self.data.alpha * 0.8)),
+                    self.data.recharge_tickness
+                )
+            end
+
+            x_offset = x_offset + text_width + 24
+        end
+
+        local other_active = {}
+        for _, indicator in ipairs(self.data.other) do
+            if indicator.condition() then table.insert(other_active, indicator) end
+        end
+        if #other_active > 0 then
+            local total_width_extra = 0
+            for i, indicator in ipairs(other_active) do
+                total_width_extra = total_width_extra + renderer.measure_text('c', indicator.text)
+                if i < #other_active then total_width_extra = total_width_extra + 10 end
+            end
+            local x_offset_extra = screen.x + self.data.offset
+            local y_pos_extra = y_pos + 22
+            for _, indicator in ipairs(other_active) do
+                local anim = self.data.anim_other[indicator.id] or 0
+                anim = math.min(anim + globals.frametime() * 6, 1)
+                self.data.anim_other[indicator.id] = anim
+                local color = render.color(r, g, b, self.data.alpha)
+                local text_width = renderer.measure_text('c', indicator.text)
+                local text_color = render.color(color.r, color.g, color.b, math.floor(self.data.alpha * (0.3 + 0.7 * anim)))
+                better_render:text('extra_'..indicator.id,
+                    vector(x_offset_extra, y_pos_extra),
+                    text_color,
+                    'c', 0,
+                    indicator.text
+                )
+                x_offset_extra = x_offset_extra + text_width + 10
+            end
         end
     end
-
+ 
     callbacks:set('paint_ui', function()
         crosshair:render()
     end)
