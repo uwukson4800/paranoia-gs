@@ -108,13 +108,13 @@ local interfaces do
     interfaces.material_system_hardware_config = { }
     do
         local native_SetHdrEnabled = vtable_bind('materialsystem.dll', 'MaterialSystemHardwareConfig013', 50, 'void(__thiscall*)(void*, bool)')
-	    local native_GetHdrEnabled = vtable_bind('materialsystem.dll', 'MaterialSystemHardwareConfig013', 49, 'bool(__thiscall*)(void*)')
+	local native_GetHdrEnabled = vtable_bind('materialsystem.dll', 'MaterialSystemHardwareConfig013', 49, 'bool(__thiscall*)(void*)')
 
         function interfaces.material_system_hardware_config:set_hdr_enabled(active)
             native_SetHdrEnabled(active)
         end
 
-	    function interfaces.material_system_hardware_config:get_hdr_enabled()
+	function interfaces.material_system_hardware_config:get_hdr_enabled()
             return native_GetHdrEnabled()
         end
     end
