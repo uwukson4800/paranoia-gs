@@ -968,7 +968,17 @@ end
 
 -- @ network metrics
 do
-    local fps_samples, avg_samples = {}, {}
+    -- https://github.com/tickcount/cstrike15_src/blob/f82112a2388b841d72cb62ca48ab1846dfcc11c8/public/tier0/cpumonitoring.h#L9
+    ffi.cdef [[
+        typedef struct {
+            double m_timeStamp; // Time (from Plat_FloatTime) when the measurements were made.
+            float m_GHz;
+            float m_percentage;
+            float m_lowestPercentage;
+        } CPUFrequencyResults;
+    ]]
+
+    local fps_samples, avg_samples = { }, { }
     local function smooth_fps(current)
         table.insert(fps_samples, current)
         if #fps_samples > 64 then table.remove(fps_samples, 1) end
@@ -985,7 +995,7 @@ do
     end
     
     local signature_cpu = utils:opcode_scan('engine.dll', 'FF 15 ? ? ? ? 83 C4 ? 0F 10 08')
-    local cpu_stats = ffi.cast('struct { double timestamp; float ghz; float percent; float lpercent; }*', ffi.cast('void**', ffi.cast('char***', ffi.cast('char*', signature_cpu) + 2)[0][0] + 237)[0])
+    local cpu_frequency_results = ffi.cast('CPUFrequencyResults*', ffi.cast('void**', ffi.cast('char***', ffi.cast('char*', signature_cpu) + 2)[0][0] + 237)[0])
     
     local metrics = {
         alpha = 0,
@@ -1020,9 +1030,9 @@ do
         better_render:text('title', vector(x + width/8 + 10, y + 10), render.color(255,255,255,math.floor(255*metrics.alpha)), 'c', 0, 'Network Metrics')
         renderer.line(x + 18, y + 24, x + width - 18, y + 24)
     
-        local cpu_freq = cpu_stats.ghz
-        local cpu_usage = cpu_stats.percent
-        local cpu_usage_l = cpu_stats.lpercent
+        local cpu_ghz = cpu_frequency_results.m_GHz
+        local cpu_usage = cpu_frequency_results.m_percentage
+        local lowest_usage = cpu_frequency_results.m_lowestPercentage
     
         local frametime = globals.frametime()
         local current_fps = math.floor(1 / frametime)
@@ -1060,7 +1070,7 @@ do
             },
             {
                 name = '⚙️ cpu',
-                value = string.format('%.1f%% (%.2f GHz), %.1f%%', cpu_usage, cpu_freq, cpu_usage_l),
+                value = string.format('%.1f%% (%.2f GHz), %.1f%%', cpu_usage, cpu_ghz, lowest_usage),
                 enabled = enabled,
                 key = 'cpu'
             },
@@ -1897,7 +1907,7 @@ do
     end
     
     main_data_table = {
-        users = {}
+        users = { }
     }
     
     local scoreboard_icon_enabled = false
@@ -1971,7 +1981,7 @@ do
                     user.icon_set = true
                 end
             else
-                main_data_table.users[target] = {}
+                main_data_table.users[target] = { }
             end
         end
     end)
@@ -1980,7 +1990,7 @@ do
         local packet = ffi.cast(voice_data_t, msg.data)
         local target = (ffi.cast('char*', packet) + 8)[0] + 1
     
-        main_data_table.users[target] = main_data_table.users[target] or {}
+        main_data_table.users[target] = main_data_table.users[target] or { }
         local user = main_data_table.users[target]
     
         for cheat_identifier, detection_function in pairs(detector_table) do
@@ -2004,7 +2014,7 @@ do
     callbacks:set('player_connect_full', function(event)
         local target = client.userid_to_entindex(event.userid)
         if target == entity.get_local_player() then
-            main_data_table.users = {}
+            main_data_table.users = { }
             js.clear()
             js.destroy()
             client.delay_call(0.5, function()
@@ -2012,7 +2022,7 @@ do
             end)
         else
             for _, user in pairs(main_data_table.users) do
-                user[target] = {}
+                user[target] = { }
             end
         end
     end)
@@ -2081,7 +2091,7 @@ do
     ]]
 
     local v_engine_cvar = client.create_interface('vstdlib.dll', 'VEngineCvar007')
-    local hidden_cvars = {}
+    local hidden_cvars = { }
 
     local con_command_base = ffi.cast('c_con_command_base ***', ffi.cast('uint32_t', v_engine_cvar) + 0x34)[0][0]
     local cmd = ffi.cast('c_con_command_base *', con_command_base.next)
@@ -2296,13 +2306,13 @@ do
         offset = 0,
         offset_ind = 0,
         alpha = 255,
-        indicators = {},
-        anim = {},
+        indicators = { },
+        anim = { },
         recharge_anim = 0,
         recharge_tickness = 2,
 
-        other = {},
-        anim_other = {},
+        other = { },
+        anim_other = { },
     }
 
     local function get_accent_color(alpha)
@@ -2397,7 +2407,7 @@ do
             script_text
         )
 
-        local main_indicators = {}
+        local main_indicators = { }
         if show_dt then table.insert(main_indicators, self.data.indicators[1]) end
         if show_hs then table.insert(main_indicators, self.data.indicators[2]) end
 
@@ -2446,7 +2456,7 @@ do
             x_offset = x_offset + text_width + 24
         end
 
-        local other_active = {}
+        local other_active = { }
         for _, indicator in ipairs(self.data.other) do
             if indicator.condition() then table.insert(other_active, indicator) end
         end
