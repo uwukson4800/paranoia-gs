@@ -263,6 +263,7 @@ local interfaces do
         end
     end
 
+    -- https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/shared/IEffects.h#L32
     interfaces.effects = { }
     do
         ffi.cdef[[
