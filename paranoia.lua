@@ -361,6 +361,7 @@ local menu do
         },
 
         ['misc'] = {
+            spawn_effect = gui.switch('Spawn Effect'),
             jittermove = gui.switch('Jitter move'),
             panorama = gui.selectable('⋆☾⋆⁺₊ Panorama', { 'CS:GO Logo', 'Remove News and Shop', 'Change background', 'Remove stats button', 'Remove watch button', 'Remove sidebar', 'Remove model in mainmenu' }),
         }
@@ -417,11 +418,15 @@ do
 
             menu.general.world.removals.blood:visibility(current_tab == '• World')
             menu.general.world.removals.ragdolls:visibility(current_tab == '• World')
+
+            
         end
 
         -- @ misc
         do
             local current_tab = menu.general.tabs:get()
+
+            menu.general.misc.spawn_effect:visibility(current_tab == '• Misc')
 
             menu.general.misc.jittermove:visibility(current_tab == '• Misc')
             menu.general.misc.panorama:visibility(current_tab == '• Misc')
@@ -2440,8 +2445,8 @@ do
         local target_offset_ind = is_scoped and ((exploits:is_hideshots() and (not exploits:is_doubletap())) and 45 or 40) or 0 -- cringe =(
         local target_alpha = is_grenade and 150 or a
 
-        self.data.offset = motion.lerp(self.data.offset, target_offset, globals.frametime() * 8)
-        self.data.offset_ind = motion.lerp(self.data.offset_ind, target_offset_ind, globals.frametime() * 8)
+        self.data.offset = motion.lerp(self.data.offset, target_offset, globals.frametime() * 16)
+        self.data.offset_ind = motion.lerp(self.data.offset_ind, target_offset_ind, globals.frametime() * 14)
         self.data.alpha = motion.lerp(self.data.alpha, target_alpha, globals.frametime() * 8)
 
         if self.data.alpha < 1 then
@@ -2544,6 +2549,47 @@ do
  
     callbacks:set('paint_ui', function()
         crosshair:render()
+    end)
+end
+
+-- @ freeze
+do
+    local freeze = { }
+    
+    function freeze:render()
+        if not menu.general.misc.spawn_effect:get() then
+            return
+        end
+
+        if context.local_player == nil or context.weapon == nil then
+            return
+        end
+
+        local game_rules = entity.get_game_rules()
+        if game_rules == nil then
+            return
+        end
+
+        local is_freeze_time = entity.get_prop(game_rules, 'm_bFreezePeriod') == 1
+        local _x, _y, _z = entity.get_origin(context.local_player)
+        
+        if is_freeze_time then
+            interfaces.effects:energy_splash(
+                { x = _x, y = _y, z = _z },
+                { x = 0, y = 0, z = 0 },
+                true
+            )
+        end
+    end
+
+    callbacks:set('paint_ui', function()
+        freeze:render()
+    end)
+
+    client.set_event_callback('shutdown', function()
+        if freeze then
+            freeze = nil
+        end
     end)
 end
 
