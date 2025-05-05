@@ -275,7 +275,7 @@ local interfaces do
             } qangle;
         ]]
 
-        local native_EnergySplash = vtable_bind('client.dll', 'IEffects001', 6, 'void(__thiscall*)(void*, const vector3d&, const qangle&, bool)')
+        local native_EnergySplash = vtable_bind('client.dll', 'IEffects001', 7, 'void(__thiscall*)(void*, const vector3d&, const qangle&, bool)')
 
         function interfaces.effects:energy_splash(position, angle, explosive)
             local pos = ffi.new('vector3d')
@@ -2157,6 +2157,28 @@ do
 		end
 
         clean = true
+    end)
+
+    local cleaning = { }
+    function cleaning:run()
+        context.local_player = nil
+        context.weapon = nil
+        
+        collectgarbage('collect')
+    end
+
+    callbacks:set('cs_game_disconnected', function()
+        cleaning:run()
+    end)
+
+    callbacks:set('client_disconnect', function()
+        cleaning:run()
+    end)
+
+    client.set_event_callback('shutdown', function()
+        if cleaning then
+            cleaning = nil
+        end
     end)
 end
 
