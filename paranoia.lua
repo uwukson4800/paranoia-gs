@@ -291,6 +291,16 @@ local interfaces do
             native_EnergySplash(pos, ang, explosive or false)
         end
     end
+
+    -- https://github.com/tickcount/cstrike15_src/blob/f82112a2388b841d72cb62ca48ab1846dfcc11c8/vgui2/src/system_posix.cpp#L54
+    interfaces.system = { }
+    do
+        local native_CommandLineParamExists = vtable_bind('vgui2.dll', 'VGUI_System010', 22, 'bool(__thiscall*)(void*, const char*)')
+
+        function interfaces.system:command_line_param(param)
+            return native_CommandLineParamExists(param)    
+        end
+    end
 end
 
 local menu do
@@ -2206,6 +2216,12 @@ do
         backtrack = 0
     }
 
+    function event_logs:print(text)
+        local r, g, b = menu.general.visuals.accent_color:get()
+        client.color_log(r, g, b, string.format('%s | %s\0', context.information.script, text))
+        client.color_log(255, 255, 255, '\n\0')
+    end
+
     callbacks:set('aim_fire', function(e)
         if not menu.general.visuals.widgets.eventlogs:get() then
             return
@@ -2242,6 +2258,7 @@ do
         end
         
         notifications.add('✅', text, 2, 10, {0, 255, 0, 255})
+        event_logs:print(text)
     end)
 
     callbacks:set('aim_miss', function(e)
@@ -2259,6 +2276,13 @@ do
         )
 
         notifications.add('❌️', text, 2, 10, {255, 0, 0, 255})
+        event_logs:print(text)
+    end)
+
+    client.set_event_callback('shutdown', function()
+        if event_logs then
+            event_logs = nil
+        end
     end)
 end
 
