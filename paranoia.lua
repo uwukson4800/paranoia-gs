@@ -263,7 +263,7 @@ local interfaces do
         end
     end
 
-    -- https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/shared/IEffects.h#L32
+    -- https://github.com/tickcount/cstrike15_src/blob/master/game/shared/IEffects.h#L32
     interfaces.effects = { }
     do
         ffi.cdef[[
@@ -318,7 +318,8 @@ local menu do
 
         ['animations'] = {
             player = gui.selectable('Animations', { 'Disable Move Lean', 'Interpolate' }),
-            falling = gui.combo('Falling Animation', { 'Disabled', 'Forced', 'Legacy' })
+            falling = gui.combo('Falling Animation', { 'Disabled', 'Forced', 'Legacy' }),
+            freeze = gui.combo('On freeze period', { 'Disabled', 'Main menu', '"I give up"', 'T-Pose' } )
         },
 
         ['visuals'] = {
@@ -388,6 +389,7 @@ do
 
             menu.general.animations.player:visibility(current_tab == '• Animations')
             menu.general.animations.falling:visibility(current_tab == '• Animations')
+            menu.general.animations.freeze:visibility(current_tab == '• Animations')
         end
 
         -- @ visuals
@@ -573,6 +575,7 @@ do
 
         local animations_select = menu.general.animations.player:get()
         local falling_animations = menu.general.animations.falling:get()
+        local freeze_animations = menu.general.animations.freeze:get()
 
         if falling_animations == 'Forced' then
             entity.set_prop(context.local_player, 'm_flPoseParameter', 1, 6)
@@ -585,6 +588,28 @@ do
         if array_string(animations_select, 'Disable Move Lean') ~= nil then
             my_data:get_anim_overlay(12).weight = 0
             my_data:get_anim_overlay(12).playback_rate = 0
+        end
+
+        local game_rules = entity.get_game_rules()
+        if game_rules ~= nil then
+            local is_freeze_time = entity.get_prop(game_rules, 'm_bFreezePeriod') == 1
+
+            if is_freeze_time then
+                if freeze_animations == 'Main menu' then
+                    my_data:get_anim_overlay(0).cycle = 1
+                    my_data:get_anim_overlay(0).sequence = 10
+                end
+
+                if freeze_animations == '"I give up"' then
+                    my_data:get_anim_overlay(0).cycle = 0.8
+                    my_data:get_anim_overlay(0).sequence = 262
+                end
+
+                if freeze_animations == 'T-Pose' then
+                    my_data:get_anim_overlay(0).cycle = 0.2
+                    my_data:get_anim_overlay(0).sequence = 11
+                end
+            end
         end
     end
     callbacks:set('pre_render', function()
@@ -620,8 +645,18 @@ do
             return nil
         end
 
-        if not context.local_player then
+        if context.local_player == nil or context.weapon == nil then
             return nil
+        end
+
+        local game_rules = entity.get_game_rules()
+        if game_rules == nil then
+            return
+        end
+
+        local is_freeze_time = entity.get_prop(game_rules, 'm_bFreezePeriod') == 1
+        if is_freeze_time then
+            return
         end
         
         local self_index = c_entity(context.local_player)
@@ -699,7 +734,17 @@ do
             return
         end
 
-        if context.local_player == nil then
+        if context.local_player == nil or context.weapon == nil then
+            return nil
+        end
+
+        local game_rules = entity.get_game_rules()
+        if game_rules == nil then
+            return
+        end
+
+        local is_freeze_time = entity.get_prop(game_rules, 'm_bFreezePeriod') == 1
+        if is_freeze_time then
             return
         end
         
@@ -733,7 +778,17 @@ do
             return
         end
         
-        if not context.local_player then
+        if context.local_player == nil or context.weapon == nil then
+            return nil
+        end
+
+        local game_rules = entity.get_game_rules()
+        if game_rules == nil then
+            return
+        end
+
+        local is_freeze_time = entity.get_prop(game_rules, 'm_bFreezePeriod') == 1
+        if is_freeze_time then
             return
         end
         
