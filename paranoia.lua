@@ -262,6 +262,35 @@ local interfaces do
             return native_GetBlend()
         end
     end
+
+    interfaces.effects = { }
+    do
+        ffi.cdef[[
+            typedef struct {
+                float x, y, z;
+            } vector3d;
+
+            typedef struct {
+                float x, y, z;
+            } qangle;
+        ]]
+
+        local native_EnergySplash = vtable_bind('client.dll', 'IEffects001', 6, 'void(__thiscall*)(void*, const vector3d&, const qangle&, bool)')
+
+        function interfaces.effects:energy_splash(position, angle, explosive)
+            local pos = ffi.new('vector3d')
+            pos.x = position.x
+            pos.y = position.y
+            pos.z = position.z
+
+            local ang = ffi.new('qangle')
+            ang.x = angle.x
+            ang.y = angle.y
+            ang.z = angle.z
+
+            native_EnergySplash(pos, ang, explosive or false)
+        end
+    end
 end
 
 local menu do
@@ -889,6 +918,11 @@ do
     local epsilon = 0.01
 
     function thirdperson:run()
+        if interfaces.input:thirdperson() == false then
+            current_distance = 0
+            return
+        end
+
         local target_distance = menu.general.visuals.thirdperson.distance:get()
         
         if not motion.is_close(current_distance, target_distance, epsilon) then
@@ -969,7 +1003,7 @@ end
 -- @ network metrics
 do
     -- https://github.com/tickcount/cstrike15_src/blob/f82112a2388b841d72cb62ca48ab1846dfcc11c8/public/tier0/cpumonitoring.h#L9
-    ffi.cdef [[
+    ffi.cdef[[
         typedef struct {
             double m_timeStamp; // Time (from Plat_FloatTime) when the measurements were made.
             float m_GHz;
