@@ -2278,24 +2278,15 @@ do
         [4] = 'left arm', [5] = 'right arm', [6] = 'left leg', [7] = 'right leg',
         [8] = 'neck', [9] = 'gear'
     }
-    event_logs.reasons = {
-        ['spread'] = 'spread',
-        ['prediction error'] = 'prediction',
-        ['death'] = 'death', 
-        ['?'] = 'resolver'
-    }
 
     local last_shot = {
-        backtrack = nil,
-        teleported = nil,
-        interpolated = nil,
-        extrapolated = nil
+        backtrack = nil
     }
 
     function event_logs:print(text)
         local r, g, b = menu.general.visuals.accent_color:get()
-        client.color_log(r, g, b, string.format('%s | %s\0', context.information.script, text))
-        client.color_log(255, 255, 255, '\n\0')
+        client.color_log(r, g, b, string.format('%s | \0', context.information.script))
+        client.color_log(200, 200, 200, string.format('%s\n\0', text))
     end
 
     callbacks:set('aim_fire', function(e)
@@ -2304,10 +2295,6 @@ do
         end
 
         last_shot.backtrack = globals.tickcount() - e.tick
-
-        last_shot.teleported = e.teleported and ', teleported' or ''
-        last_shot.interpolated = e.interpolated and ', interpolated' or ''
-        last_shot.extrapolated = e.extrapolated and ', extrapolated' or ''
     end)
 
     callbacks:set('aim_hit', function(e)
@@ -2320,26 +2307,20 @@ do
         
         if is_kill then
             text = string.format(
-                'Killed %s for %d damage (bt: %d, hc: %d%s%s%s)',
+                'killed %s for %d damage (bt: %d, hc: %d)',
                 entity.get_player_name(e.target),
                 e.damage or 0,
                 last_shot.backtrack or 0,
-                math.floor(e.hit_chance or 0),
-                last_shot.teleported,
-                last_shot.interpolated,
-                last_shot.extrapolated
+                math.floor(e.hit_chance or 0)
             )
         else
             text = string.format(
-                "Hit in %s's %s for %dhp (bt: %d, hc: %d%s%s%s)",
+                "hit in %s's %s for %dhp (bt: %d, hc: %d)",
                 entity.get_player_name(e.target),
                 event_logs.hitgroups[e.hitgroup] or 'generic',
                 e.damage or 0,
                 last_shot.backtrack or 0,
-                math.floor(e.hit_chance or 0),
-                last_shot.teleported,
-                last_shot.interpolated,
-                last_shot.extrapolated
+                math.floor(e.hit_chance or 0)
             )
         end
 
@@ -2352,15 +2333,12 @@ do
         end
 
         local text = string.format(
-            "Missed shot in %s's %s due to %s (bt: %d, hc: %d%s%s%s)",
+            "missed shot in %s's %s due to %s (bt: %d, hc: %d)",
             entity.get_player_name(e.target),
             event_logs.hitgroups[e.hitgroup] or 'generic',
-            event_logs.reasons[e.reason] or 'unknown', 
+            e.reason, 
             last_shot.backtrack or 0,
-            math.floor(e.hit_chance or 0),
-            last_shot.teleported,
-            last_shot.interpolated,
-            last_shot.extrapolated
+            math.floor(e.hit_chance or 0)
         )
 
         event_logs:print(text)
@@ -2701,6 +2679,16 @@ do
         if freeze then
             freeze = nil
         end
+    end)
+end
+
+-- @ console filter
+do
+    cvar.con_filter_text:set_string('[gamesense]')
+    cvar.con_filter_enable:set_raw_int(1)
+
+    client.set_event_callback('shutdown', function()
+        cvar.con_filter_enable:set_raw_int(0)
     end)
 end
 
