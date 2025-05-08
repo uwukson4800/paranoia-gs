@@ -2316,7 +2316,11 @@ do
     }
 
     local last_shot = {
-        backtrack = nil
+        backtrack = nil,
+        wanted_hitgroup = nil,
+        wanted_damage = nil,
+        teleported = nil,
+        high_priority = nil
     }
 
     function event_logs:print(text)
@@ -2331,6 +2335,12 @@ do
         end
 
         last_shot.backtrack = globals.tickcount() - e.tick
+
+        last_shot.wanted_hitgroup = e.hitgroup
+        last_shot.wanted_damage = e.damage
+
+        last_shot.teleported = e.teleported
+        last_shot.high_priority = e.high_priority
     end)
 
     callbacks:set('aim_hit', function(e)
@@ -2338,27 +2348,41 @@ do
             return
         end
 
-        local is_kill = e.high_priority
         local text = ''
-        
-        if is_kill then
-            text = string.format(
-                'killed %s for %d damage (bt: %d, hc: %d)',
-                entity.get_player_name(e.target),
-                e.damage or 0,
-                last_shot.backtrack or 0,
-                math.floor(e.hit_chance or 0)
-            )
-        else
-            text = string.format(
-                "hit in %s's %s for %dhp (bt: %d, hc: %d)",
-                entity.get_player_name(e.target),
-                event_logs.hitgroups[e.hitgroup] or 'generic',
-                e.damage or 0,
-                last_shot.backtrack or 0,
-                math.floor(e.hit_chance or 0)
-            )
+        local _info = ''
+
+        local actual_damage = e.damage or 0
+        local wanted_damage = last_shot.wanted_damage or actual_damage
+
+        local actual_hitgroup = e.hitgroup
+        local wanted_hitgroup = last_shot.wanted_hitgroup or actual_hitgroup
+
+        local hitgroup_str = event_logs.hitgroups[actual_hitgroup] or 'generic'
+        if actual_hitgroup ~= wanted_hitgroup then
+            hitgroup_str = string.format('%s(%s)', hitgroup_str, event_logs.hitgroups[wanted_hitgroup] or tostring(wanted_hitgroup))
         end
+
+        local damage_str = tostring(actual_damage)
+        if actual_damage ~= wanted_damage then
+            damage_str = string.format('%d(%d)', actual_damage, wanted_damage)
+        end
+
+        if last_shot.teleported then
+            _info = _info .. '| teleported '
+        end
+        if last_shot.high_priority then
+            _info = _info .. '| high priority '
+        end
+    
+        text = string.format(
+            "hit %s in the %s for %s [ hc: %d | bt: %dt %s]",
+            entity.get_player_name(e.target),
+            hitgroup_str,
+            damage_str,
+            math.floor(e.hit_chance + 0.5) or 0,
+            last_shot.backtrack or 0,
+            _info
+        )
 
         event_logs:print(text)
     end)
@@ -2368,13 +2392,32 @@ do
             return
         end
 
-        local text = string.format(
-            "missed shot in %s's %s due to %s (bt: %d, hc: %d)",
+        local text = ''
+        local _info = ''
+
+        local actual_hitgroup = e.hitgroup
+        local wanted_hitgroup = last_shot.wanted_hitgroup or actual_hitgroup
+
+        local hitgroup_str = event_logs.hitgroups[actual_hitgroup] or 'generic'
+        if actual_hitgroup ~= wanted_hitgroup then
+            hitgroup_str = string.format('%s(%s)', hitgroup_str, event_logs.hitgroups[wanted_hitgroup] or tostring(wanted_hitgroup))
+        end
+
+        if last_shot.teleported then
+            _info = _info .. '| teleported '
+        end
+        if last_shot.high_priority then
+            _info = _info .. '| high priority '
+        end
+
+        text = string.format(
+            "missed %s's %s due to %s [ hc: %d | bt: %dt %s]",
             entity.get_player_name(e.target),
-            event_logs.hitgroups[e.hitgroup] or 'generic',
-            e.reason, 
+            hitgroup_str,
+            e.reason or 'unk',
+            math.floor(e.hit_chance + 0.5) or 0,
             last_shot.backtrack or 0,
-            math.floor(e.hit_chance or 0)
+            _info
         )
 
         event_logs:print(text)
@@ -2384,6 +2427,12 @@ do
         if event_logs then
             event_logs = nil
         end
+
+        if last_shot then
+            last_shot = nil
+        end
+
+        collectgarbage()
     end)
 end
 
