@@ -41,16 +41,13 @@ local motion do
     end
 end
 
-function array_string(arr, value)
-    if arr == nil then return nil end
-    
-    for i, v in ipairs(arr) do
+local function array_contains(array, value)
+    for _, v in ipairs(array) do
         if v == value then
-            return i
+            return true
         end
     end
-    
-    return nil
+    return false
 end
 
 local context do
@@ -310,6 +307,11 @@ local interfaces do
     end
 end
 
+local function translate(english_text, russian_text)
+    local is_russian = interfaces.system:command_line_param('language russian')
+    return is_russian and russian_text or english_text
+end
+
 local menu do
     menu = { }
 
@@ -320,68 +322,103 @@ local menu do
     }
 
     menu.general = {
-        tabs = gui.combo('\1', { '• Animations','• Visuals', '• World', '• Misc' }),
+        tabs = gui.combo('\1', { 
+            translate('• Animations', '• Анимации'),
+            translate('• Visuals', '• Визуальные эффекты'), 
+            translate('• World', '• Мир'), 
+            translate('• Misc', '• Прочее') 
+        }),
 
         ['animations'] = {
-            player = gui.selectable('Animations', { 'Disable Move Lean', 'Interpolate' }),
-            falling = gui.combo('Falling Animation', { 'Disabled', 'Forced', 'Legacy' }),
-            freeze = gui.combo('On freeze period', { 'Disabled', 'Main menu', '"I give up"', 'T-Pose' } )
+            player = gui.selectable(translate('Animations', 'Анимации'), { 
+                translate('Disable Move Lean', 'Отключить наклон при движении'), 
+                translate('Interpolate', 'Интерполяция') 
+            }),
+            falling = gui.combo(translate('Falling Animation', 'Анимация падения'), { 
+                translate('Disabled', 'Отключено'), 
+                translate('Forced', 'Принудительно'), 
+                translate('Legacy', 'Устаревшая')
+            }),
+            freeze = gui.combo(translate('On freeze period', 'Во время заморозки'), { 
+                translate('Disabled', 'Отключено'), 
+                translate('Main menu', 'Главное меню'), 
+                translate('"I give up"', '"Я сдаюсь"'), 
+                translate('T-Pose', 'Т-поза') 
+            })
         },
 
         ['visuals'] = {
             ['thirdperson'] = {
-                distance = gui.slider('Thirdperson distance', 30, 180, 100, true, '', 1, { [100] = 'Default' } ),
+                distance = gui.slider(translate('Thirdperson distance', 'Дистанция от третьего лица'), 30, 180, 100, true, '', 1, { [100] = translate('Default', 'По умолчанию') } ),
             },
 
-            accent_color_text = gui.label('Accent Color'),
-            accent_color = gui.color_picker('Accent Color'),
+            accent_color_text = gui.label(translate('Accent Color', 'Цвет акцента')),
+            accent_color = gui.color_picker(translate('Accent Color', 'Цвет акцента')),
 
             ['viewmodel'] = {
-                in_scope = gui.switch('Viewmodel in scope')
+                in_scope = gui.switch(translate('Viewmodel in scope', 'Модель оружия в прицеле'))
             },
 
             ['scope'] = {
-                enabled = gui.switch('Custom scope overlay'),
-                gap = gui.slider('Scope gap', 0, 50, 5, true, 'px'),
-                size = gui.slider('Scope size', 15, 300, 30, true, 'px')
+                enabled = gui.switch(translate('Custom scope overlay', 'Настраиваемый прицел')),
+                gap = gui.slider(translate('Scope gap', 'Зазор прицела'), 0, 50, 5, true, 'px'),
+                size = gui.slider(translate('Scope size', 'Размер прицела'), 15, 300, 30, true, 'px')
             },
 
             ['widgets'] = {
-                watermark = gui.switch('Watermark'),
-                crosshair = gui.switch('Center Indicators'),
-    
+                watermark = gui.switch(translate('Watermark', 'Водяной знак')),
+                crosshair = gui.switch(translate('Center Indicators', 'Центральные индикаторы')),
     
                 ['metrics'] = {
-                    enable = gui.switch('Network Metrics')
+                    enable = gui.switch(translate('Network Metrics', 'Сетевые показатели'))
                 },
 
-                eventlogs = gui.switch('Event Logs')
+                eventlogs = gui.switch(translate('Event Logs', 'Логи'))
             }
         },
 
         ['world'] = {
             ['aspectratio'] = {
-                enabled = gui.switch('Aspect Ratio'),
-                value = gui.slider('Aspect Ratio Value', 59, 200, 177, true, '', 1, { [59] = 'Off', [125] = '5:4', [133] = '4:3', [150] = '3:2', [177] = '16:9', [161] = '16:10' }),
+                enabled = gui.switch(translate('Aspect Ratio', 'Соотношение сторон')),
+                value = gui.slider(translate('Aspect Ratio Value', 'Значение соотношения сторон'), 59, 200, 177, true, '', 1, { 
+                    [59] = translate('Off', 'Выкл'), 
+                    [125] = '5:4', 
+                    [133] = '4:3', 
+                    [150] = '3:2', 
+                    [177] = '16:9', 
+                    [161] = '16:10' 
+                }),
             },
 
             ['ambient'] = {
-                wall_dyeing = gui.switch('Wall Dyeing'),
-                wall_dyeing_color = gui.color_picker('Wall Dyeing Color'),
-                model_ambient = gui.slider('Model Brightness', 0, 100, 0),
-                force_hdr = gui.switch('Force HDR')
+                wall_dyeing = gui.switch(translate('Wall Dyeing', 'Окрашивание стен')),
+                wall_dyeing_color = gui.color_picker(translate('Wall Dyeing Color', 'Цвет окрашивания стен')),
+                model_ambient = gui.slider(translate('Model Brightness', 'Яркость модели'), 0, 100, 0),
+                force_hdr = gui.switch(translate('Force HDR', 'Принудительный HDR'))
             },
 
             ['removals'] = {
-                blood = gui.switch('No Blood'),
-                ragdolls = gui.combo('Disable Ragdolls', { 'Disabled', 'Physics', 'Rendering' })
+                blood = gui.switch(translate('No Blood', 'Отключить кровь')),
+                ragdolls = gui.combo(translate('Disable Ragdolls', 'Отключить регдоллы'), { 
+                    translate('Disabled', 'Отключено'), 
+                    translate('Physics', 'Физика'), 
+                    translate('Rendering', 'Рендеринг') 
+                })
             }
         },
 
         ['misc'] = {
-            spawn_effect = gui.switch('Spawn Effect'),
-            jittermove = gui.switch('Jitter move'),
-            panorama = gui.selectable('⋆☾⋆⁺₊ Panorama', { 'CS:GO Logo', 'Remove News and Shop', 'Change background', 'Remove stats button', 'Remove watch button', 'Remove sidebar', 'Remove model in mainmenu' }),
+            spawn_effect = gui.switch(translate('Spawn Effect', 'Эффект появления')),
+            jittermove = gui.switch(translate('Jitter move', 'Дрожащее движение')),
+            panorama = gui.selectable(translate('⋆☾⋆⁺₊ Panorama', '⋆☾⋆⁺₊ Панорама'), { 
+                translate('CS:GO Logo', 'Логотип CS:GO'), 
+                translate('Remove News and Shop', 'Убрать новости и магазин'), 
+                translate('Change background', 'Изменить фон'), 
+                translate('Remove stats button', 'Убрать кнопку статистики'), 
+                translate('Remove watch button', 'Убрать кнопку просмотра'), 
+                translate('Remove sidebar', 'Убрать боковую панель'), 
+                translate('Remove model in mainmenu', 'Убрать модель в главном меню') 
+            })
         }
     }
 end
@@ -393,50 +430,50 @@ do
         do
             local current_tab = menu.general.tabs:get()
 
-            menu.general.animations.player:visibility(current_tab == '• Animations')
-            menu.general.animations.falling:visibility(current_tab == '• Animations')
-            menu.general.animations.freeze:visibility(current_tab == '• Animations')
+            menu.general.animations.player:visibility(current_tab == translate('• Animations', '• Анимации'))
+            menu.general.animations.falling:visibility(current_tab == translate('• Animations', '• Анимации'))
+            menu.general.animations.freeze:visibility(current_tab == translate('• Animations', '• Анимации'))
         end
 
         -- @ visuals
         do
             local current_tab = menu.general.tabs:get()
 
-            menu.general.visuals.accent_color_text:visibility(current_tab == '• Visuals')
-            menu.general.visuals.accent_color:visibility(current_tab == '• Visuals')
+            menu.general.visuals.accent_color_text:visibility(current_tab == translate('• Visuals', '• Визуальные эффекты'))
+            menu.general.visuals.accent_color:visibility(current_tab == translate('• Visuals', '• Визуальные эффекты'))
 
-            menu.general.visuals.thirdperson.distance:visibility(current_tab == '• Visuals')
+            menu.general.visuals.thirdperson.distance:visibility(current_tab == translate('• Visuals', '• Визуальные эффекты'))
 
-            menu.general.visuals.viewmodel.in_scope:visibility(current_tab == '• Visuals')
+            menu.general.visuals.viewmodel.in_scope:visibility(current_tab == translate('• Visuals', '• Визуальные эффекты'))
 
-            menu.general.visuals.scope.enabled:visibility(current_tab == '• Visuals')
-            menu.general.visuals.scope.gap:visibility(current_tab == '• Visuals' and menu.general.visuals.scope.enabled:get())
-            menu.general.visuals.scope.size:visibility(current_tab == '• Visuals' and menu.general.visuals.scope.enabled:get())
+            menu.general.visuals.scope.enabled:visibility(current_tab == translate('• Visuals', '• Визуальные эффекты'))
+            menu.general.visuals.scope.gap:visibility(current_tab == translate('• Visuals', '• Визуальные эффекты') and menu.general.visuals.scope.enabled:get())
+            menu.general.visuals.scope.size:visibility(current_tab == translate('• Visuals', '• Визуальные эффекты') and menu.general.visuals.scope.enabled:get())
 
-            menu.general.visuals.widgets.watermark:visibility(current_tab == '• Visuals')
+            menu.general.visuals.widgets.watermark:visibility(current_tab == translate('• Visuals', '• Визуальные эффекты'))
             
-            menu.general.visuals.widgets.crosshair:visibility(current_tab == '• Visuals')
+            menu.general.visuals.widgets.crosshair:visibility(current_tab == translate('• Visuals', '• Визуальные эффекты'))
 
-            menu.general.visuals.widgets.metrics.enable:visibility(current_tab == '• Visuals')
+            menu.general.visuals.widgets.metrics.enable:visibility(current_tab == translate('• Visuals', '• Визуальные эффекты'))
 
-            menu.general.visuals.widgets.eventlogs:visibility(current_tab == '• Visuals')
+            menu.general.visuals.widgets.eventlogs:visibility(current_tab == translate('• Visuals', '• Визуальные эффекты'))
         end
 
         -- @ world
         do
             local current_tab = menu.general.tabs:get()
 
-            menu.general.world.aspectratio.enabled:visibility(current_tab == '• World')
-            menu.general.world.aspectratio.value:visibility(current_tab == '• World' and menu.general.world.aspectratio.enabled:get())
+            menu.general.world.aspectratio.enabled:visibility(current_tab == translate('• World', '• Мир'))
+            menu.general.world.aspectratio.value:visibility(current_tab == translate('• World', '• Мир') and menu.general.world.aspectratio.enabled:get())
 
-            menu.general.world.ambient.wall_dyeing:visibility(current_tab == '• World')
-            menu.general.world.ambient.wall_dyeing_color:visibility(current_tab == '• World' and menu.general.world.ambient.wall_dyeing:get())
-            menu.general.world.ambient.model_ambient:visibility(current_tab == '• World' and menu.general.world.ambient.wall_dyeing:get())
+            menu.general.world.ambient.wall_dyeing:visibility(current_tab == translate('• World', '• Мир'))
+            menu.general.world.ambient.wall_dyeing_color:visibility(current_tab == translate('• World', '• Мир') and menu.general.world.ambient.wall_dyeing:get())
+            menu.general.world.ambient.model_ambient:visibility(current_tab == translate('• World', '• Мир') and menu.general.world.ambient.wall_dyeing:get())
 
-            menu.general.world.ambient.force_hdr:visibility(current_tab == '• World')
+            menu.general.world.ambient.force_hdr:visibility(current_tab == translate('• World', '• Мир'))
 
-            menu.general.world.removals.blood:visibility(current_tab == '• World')
-            menu.general.world.removals.ragdolls:visibility(current_tab == '• World')
+            menu.general.world.removals.blood:visibility(current_tab == translate('• World', '• Мир'))
+            menu.general.world.removals.ragdolls:visibility(current_tab == translate('• World', '• Мир'))
 
             
         end
@@ -445,10 +482,10 @@ do
         do
             local current_tab = menu.general.tabs:get()
 
-            menu.general.misc.spawn_effect:visibility(current_tab == '• Misc')
+            menu.general.misc.spawn_effect:visibility(current_tab == translate('• Misc', '• Прочее'))
 
-            menu.general.misc.jittermove:visibility(current_tab == '• Misc')
-            menu.general.misc.panorama:visibility(current_tab == '• Misc')
+            menu.general.misc.jittermove:visibility(current_tab == translate('• Misc', '• Прочее'))
+            menu.general.misc.panorama:visibility(current_tab == translate('• Misc', '• Прочее'))
         end
 
         -- @ for shared
@@ -470,7 +507,7 @@ do
         end
     end
 
-    local force_hdr = ui.reference('LUA', 'A', 'Force HDR')
+    local force_hdr = ui.reference('LUA', 'A', translate('Force HDR', 'Принудительный HDR'))
     ui.set(force_hdr, interfaces.material_system_hardware_config:get_hdr_enabled()) -- cringe =(
 
     callbacks:set('paint_ui', function()
@@ -602,7 +639,7 @@ do
             entity.set_prop(context.local_player, 'm_flPoseParameter', 0.35, 6)
         end
 
-        if array_string(animations_select, 'Disable Move Lean') ~= nil then
+        if array_contains(animations_select, translate('Disable Move Lean', 'Отключить наклон при движении')) then
             my_data:get_anim_overlay(12).weight = 0
             my_data:get_anim_overlay(12).playback_rate = 0
         end
@@ -658,7 +695,7 @@ do
 
     function animation_fix:capture_state()
         local animations_select = menu.general.animations.player:get()
-        if array_string(animations_select, 'Interpolate') == nil then
+        if not array_contains(animations_select, translate('Interpolate', 'Интерполяция')) then
             return nil
         end
 
@@ -704,7 +741,7 @@ do
 
     function animation_fix:setup_command()
         local animations_select = menu.general.animations.player:get()
-        if array_string(animations_select, 'Interpolate') == nil then
+        if not array_contains(animations_select, translate('Interpolate', 'Интерполяция')) then
             return
         end
 
@@ -747,7 +784,7 @@ do
     
     function animation_fix:apply_interpolated_state(state1, state2, t)
         local animations_select = menu.general.animations.player:get()
-        if array_string(animations_select, 'Interpolate') == nil then
+        if not array_contains(animations_select, translate('Interpolate', 'Интерполяция')) then
             return
         end
 
@@ -787,7 +824,7 @@ do
     
     function animation_fix:interpolate()
         local animations_select = menu.general.animations.player:get()
-        if array_string(animations_select, 'Interpolate') == nil then
+        if not array_contains(animations_select, translate('Interpolate', 'Интерполяция')) then
             return
         end
 
@@ -1744,18 +1781,18 @@ do
     ]], "CSGOMainMenu")()
 
     function _panorama:get( ecx, edx )
-        return array_string(ecx, edx) ~= nil
+        return array_contains(ecx, edx)
     end
-    
+
     function _panorama:create()
         local settings = {
-            cslogo = self:get(menu.general.misc.panorama:get(), 'CS:GO Logo'),
-            news = self:get(menu.general.misc.panorama:get(), 'Remove News and Shop'),
-            background = self:get(menu.general.misc.panorama:get(), 'Change background'),
-            stats = self:get(menu.general.misc.panorama:get(), 'Remove stats button'),
-            watch = self:get(menu.general.misc.panorama:get(), 'Remove watch button'),
-            sidebar = self:get(menu.general.misc.panorama:get(), 'Remove sidebar'),
-            model = self:get(menu.general.misc.panorama:get(), 'Remove model in mainmenu')
+            cslogo = self:get(menu.general.misc.panorama:get(), translate('CS:GO Logo', 'Логотип CS:GO')),
+            news = self:get(menu.general.misc.panorama:get(), translate('Remove News and Shop', 'Убрать новости и магазин')),
+            background = self:get(menu.general.misc.panorama:get(), translate('Change background', 'Изменить фон')),
+            stats = self:get(menu.general.misc.panorama:get(), translate('Remove stats button', 'Убрать кнопку статистики')),
+            watch = self:get(menu.general.misc.panorama:get(), translate('Remove watch button', 'Убрать кнопку просмотра')),
+            sidebar = self:get(menu.general.misc.panorama:get(), translate('Remove sidebar', 'Убрать боковую панель')),
+            model = self:get(menu.general.misc.panorama:get(), translate('Remove model in mainmenu', 'Убрать модель в главном меню'))
         }
     
         if settings.cslogo ~= _panorama.current_state.cslogo then
