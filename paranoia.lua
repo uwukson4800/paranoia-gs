@@ -7,7 +7,6 @@ local ffi      = safe:require 'ffi'
 local bit      = safe:require 'bit'
 local vector   = safe:require 'vector'
 local c_entity = safe:require 'gamesense/entity'
-local csgo_weapons = safe:require 'gamesense/csgo_weapons'
 
 -- uwukson4800 ~ https://yougame.biz/threads/349178/
 local INetChannel=(function()ffi.cdef[[typedef struct{}i_net_channel_info;typedef struct{}c_net_message;typedef bool(__fastcall*send_net_msg_t)(i_net_channel_info*,void*,c_net_message*,bool,bool);typedef struct{uint32_t i_net_message_vtable;char pad_0004[4];uint32_t c_clc_msg_voice_data_vtable;char pad_000C[8];void*data;uint64_t xuid;int32_t format;int32_t sequence_bytes;uint32_t section_number;uint32_t uncompressed_sample_offset;int32_t cached_size;uint32_t flags;char pad_0038[255];}c_clc_msg_voice_data;typedef struct{int32_t vtable;void*msgbinder1;void*msgbinder2;void*msgbinder3;void*msgbinder4;unsigned char m_bProcessingMessages;unsigned char m_bShouldDelete;char pad_0x0016[0x2];int32_t m_nOutSequenceNr;int32_t m_nInSequenceNr;int32_t m_nOutSequenceNrAck;int32_t m_nOutReliableState;int32_t m_nInReliableState;int32_t m_nChokedPackets;char pad_0030[112];int32_t m_Socket;int32_t m_StreamSocket;int32_t m_MaxReliablePayloadSize;char remote_address[32];char m_szRemoteAddressName[64];float last_received;float connect_time;char pad_0114[4];int32_t m_Rate;char pad_011C[4];float m_fClearTime;char pad_0124[16688];char m_Name[32];unsigned int m_ChallengeNr;float m_flTimeout;char pad_427C[32];float m_flInterpolationAmount;float m_flRemoteFrameTime;float m_flRemoteFrameTimeStdDeviation;int32_t m_nMaxRoutablePayloadSize;int32_t m_nSplitPacketSequence;char pad_42B0[40];bool m_bIsValveDS;char pad_42D9[65];}CNetChannel;typedef struct{char pad_0000[0x9C];CNetChannel*m_NetChannel;uint32_t m_nChallengeNr;char pad_00A4[0x64];uint32_t m_nSignonState;char pad_010C[0x8];float m_flNextCmdTime;uint32_t m_nServerCount;uint32_t m_nCurrentSequence;char pad_0120[4];char m_ClockDriftMgr[0x50];int32_t m_nDeltaTick;bool m_bPaused;char pad_0179[7];uint32_t m_nViewEntity;uint32_t m_nPlayerSlot;char m_szLevelName[260];char m_szLevelNameShort[40];char m_szGroupName[40];char pad_02DC[52];uint32_t m_nMaxClients;char pad_0314[18820];float m_flLastServerTickTime;bool insimulation;char pad_4C9D[3];uint32_t oldtickcount;float m_tickRemainder;float m_frameTime;char pad_4CAC[0x78];char temp[0x8];int32_t lastoutgoingcommand;int32_t chokedcommands;int32_t last_command_ack;int32_t last_server_tick;int32_t command_ack;char pad_4CC0[80];char viewangles[0xC];char pad_4D14[0xD0];void*m_Events;}IClientState;typedef struct{char data[16];uint32_t current_len;uint32_t max_len;}communication_string_t;typedef struct{uint64_t xuid;int32_t sequence_bytes;uint32_t section_number;uint32_t uncompressed_sample_offset;}c_voice_communication_data;typedef uint32_t(__fastcall*construct_voicedata_message)(c_clc_msg_voice_data*,void*);typedef uint32_t(__fastcall*destruct_voicedata_message)(c_clc_msg_voice_data*);]];local memory do memory={};local cast=ffi.cast;local copy=ffi.copy;local new=ffi.new;local typeof=ffi.typeof;local tonumber=tonumber;local insert=table.insert;local function opcode_scan(module,pattern,offset)local sig=client.find_signature(module,pattern);if not sig then error(string.format('failed to find signature: %s',module))end;return cast('uintptr_t',sig)+(offset or 0)end;local jmp_ecx=opcode_scan('engine.dll','\xFF\xE1');local get_proc_addr=cast('uint32_t**',cast('uint32_t',opcode_scan('engine.dll','\xFF\x15\xCC\xCC\xCC\xCC\xA3\xCC\xCC\xCC\xCC\xEB\x05'))+2)[0][0];local fn_get_proc_addr=cast('uint32_t(__fastcall*)(unsigned int,unsigned int,uint32_t,const char*)',jmp_ecx);local get_module_handle=cast('uint32_t**',cast('uint32_t',opcode_scan('engine.dll','\xFF\x15\xCC\xCC\xCC\xCC\x85\xC0\x74\x0B'))+2)[0][0];local fn_get_module_handle=cast('uint32_t(__fastcall*)(unsigned int,unsigned int,const char*)',jmp_ecx);local proc_cache={};local function proc_bind(module_name,function_name,typedef)local cache_key=module_name..function_name;if proc_cache[cache_key]then return proc_cache[cache_key]end;local ctype=typeof(typedef);local module_handle=fn_get_module_handle(get_module_handle,0,module_name);local proc_address=fn_get_proc_addr(get_proc_addr,0,module_handle,function_name);local call_fn=cast(ctype,jmp_ecx);local fn=function(...)return call_fn(proc_address,0,...)end;proc_cache[cache_key]=fn;return fn end;local native_virtualprotect=proc_bind('kernel32.dll','VirtualProtect','int(__fastcall*)(unsigned int,unsigned int,void*lpAddress,unsigned long dwSize,unsigned long flNewProtect,unsigned long*lpflOldProtect)');function memory:virtual_protect(lpAddress,dwSize,flNewProtect,lpflOldProtect)return native_virtualprotect(cast('void*',lpAddress),dwSize,flNewProtect,lpflOldProtect)end;function memory:write_raw(dest,rawbuf,len)local old_prot=ffi.new('uint32_t[1]');self:virtual_protect(ffi.cast('uintptr_t',dest),len,0x40,old_prot);ffi.copy(ffi.cast('void*',dest),rawbuf,len);self:virtual_protect(ffi.cast('uintptr_t',dest),len,old_prot[0],old_prot)end end;local utils={};local signatures={};local INetChannel={};function utils.rel32(address,offset)if address==0 or address==nil then return 0 end;local target_addr=address+offset;local rel_offset=ffi.cast('uint32_t*',target_addr)[0];if rel_offset==0 then return 0 end;return target_addr+4+rel_offset end;signatures.client_state=client.find_signature('engine.dll','\xA1\xCC\xCC\xCC\xCC\x8B\x80\xCC\xCC\xCC\xCC\xC3')or error('clientstate error');signatures.client_state=ffi.cast('IClientState***',ffi.cast('uint32_t',signatures.client_state)+1)[0][0];signatures.send_net_msg=client.find_signature('engine.dll','\x55\x8B\xEC\x83\xEC\x08\x56\x8B\xF1\x8B\x4D\x04')or error('sendnetmsg error');signatures.voicedata_constructor=client.find_signature('engine.dll','\xC6\x46\xCC\xCC\x5E\xC3\x56\x57\x8B\xF9\x8D\x4F\xCC\xC7\x07\xCC\xCC\xCC\xCC\xE8');signatures.voicedata_constructor=ffi.cast('uint32_t',signatures.voicedata_constructor)+6;signatures.voicedata_destructor=client.find_signature('engine.dll','\xE8\xCC\xCC\xCC\xCC\x5E\x8B\xE5\x5D\xC3\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\x51');signatures.voicedata_destructor=utils.rel32(ffi.cast('uint32_t',signatures.voicedata_destructor),1);function INetChannel:SendNetMsg(custom_xuid_low,custom_xuid_high)custom_xuid_high=custom_xuid_high or 0xFFEA9F9A;local communication_string_t=ffi.new('communication_string_t[1]');communication_string_t[0].current_len=0;communication_string_t[0].max_len=15;local msg=ffi.new('c_clc_msg_voice_data[1]');ffi.cast('construct_voicedata_message',signatures.voicedata_constructor)(msg,ffi.cast('void*',0));safe:print(string.format('xuid_low: [0x%X] ~ xuid_high: [0x%X]',custom_xuid_low,custom_xuid_high));memory:write_raw(ffi.cast('uint32_t',msg)+0x18,ffi.new('uint32_t[1]',custom_xuid_low),4);memory:write_raw(ffi.cast('uint32_t',msg)+0x1C,ffi.new('uint32_t[1]',custom_xuid_high),4);msg[0].sequence_bytes=math.random(0,0xFFFFFFF);msg[0].section_number=math.random(0,0xFFFFFFF);msg[0].uncompressed_sample_offset=math.random(0,0xFFFFFFF);msg[0].data=communication_string_t;msg[0].format=0;msg[0].flags=63;ffi.cast('send_net_msg_t',signatures.send_net_msg)(ffi.cast('i_net_channel_info*',signatures.client_state[0].m_NetChannel),ffi.cast('void*',0),ffi.cast('c_net_message*',msg),false,true);ffi.cast('destruct_voicedata_message',signatures.voicedata_destructor)(msg)end;client.set_event_callback('shutdown',function()if ffi then ffi=nil end;if bit then bit=nil end;if memory then memory=nil end;if signatures then signatures=nil end;if INetChannel then INetChannel=nil end;collectgarbage('collect')end);return INetChannel end)()
@@ -349,7 +348,7 @@ local menu do
 
         ['visuals'] = {
             ['thirdperson'] = {
-                distance = gui.slider(translate('Thirdperson distance', 'Дистанция от третьего лица'), 30, 180, 100, true, '', 1, { [100] = translate('Default', 'По умолчанию') } ),
+                distance = gui.slider(translate('Thirdperson distance', 'Дистанция от третьего лица'), 30, 230, 150, true, '', 1, { [30] = translate('Min', 'Минимальный'), [150] = translate('Default', 'По умолчанию'), [230] = translate('Max', 'Максимальный') } ),
             },
 
             accent_color_text = gui.label(translate('Accent Color', 'Цвет акцента')),
@@ -1036,7 +1035,7 @@ do
 end
 
 -- @ thirdperson distance
-context.thirdperson = 100
+context.thirdperson = 150
 do
     local thirdperson = { }
     local current_distance = context.thirdperson
@@ -1044,14 +1043,14 @@ do
 
     function thirdperson:run()
         if interfaces.input:thirdperson() == false then
-            current_distance = 0
+            current_distance = 30
             return
         end
 
         local target_distance = menu.general.visuals.thirdperson.distance:get()
         
         if not motion.is_close(current_distance, target_distance, epsilon) then
-            local new_distance = motion.lerp(current_distance, target_distance, 0.1)
+            local new_distance = motion.lerp(current_distance, target_distance, globals.frametime() * 8)
             
             if not motion.is_close(new_distance, current_distance, epsilon) then
                 current_distance = new_distance
@@ -1176,7 +1175,7 @@ do
         local better_render = render.new()
         local enabled = menu.general.visuals.widgets.metrics.enable:get()
 
-        metrics.alpha = metrics.alpha + (enabled and (1 - metrics.alpha) or -metrics.alpha) * 0.1
+        metrics.alpha = motion.lerp(metrics.alpha, enabled and 1 or 0, globals.frametime() * 6)
         if metrics.alpha < 0.01 and not enabled then return end
 
         local width = 305
@@ -1410,7 +1409,7 @@ do
         end
     
         if not motion.is_close(current_value, target_value, epsilon) then
-            local new_value = motion.lerp(current_value, target_value, 0.1)
+            local new_value = motion.lerp(current_value, target_value, globals.frametime() * 8)
             
             if not motion.is_close(new_value, current_value, epsilon) then
                 context.aspectratio = new_value
@@ -2036,7 +2035,7 @@ do
     local main_data_table
     
     local function get_players()
-        local players = {}
+        local players = { }
         local player_resource = entity.get_player_resource()
     
         for i = 1, globals.maxplayers() do
@@ -2401,13 +2400,8 @@ do
     end
 
     function watermark:render()
-        if not menu.general.visuals.widgets.watermark:get() then
-            watermark.data.alpha = motion.lerp(watermark.data.alpha, 0, 0.1)
-            watermark.data.x_offset = motion.lerp(watermark.data.x_offset, 350, 0.1)
-        else
-            watermark.data.alpha = motion.lerp(watermark.data.alpha, 1, 0.1)
-            watermark.data.x_offset = motion.lerp(watermark.data.x_offset, 0, 0.1)
-        end
+        watermark.data.alpha = motion.lerp(watermark.data.alpha, menu.general.visuals.widgets.watermark:get() and 1 or 0, globals.frametime() * 8)
+        watermark.data.x_offset = motion.lerp(watermark.data.x_offset, menu.general.visuals.widgets.watermark:get() and 0 or 350, globals.frametime() * 8)
     
         if watermark.data.alpha < 0.01 then
             return
@@ -2499,13 +2493,29 @@ do
         recharge_tickness = 2,
 
         other = { },
-        anim_other = { },
+        anim_other = { }
     }
 
     local function get_accent_color(alpha)
         local accent = { menu.general.visuals.accent_color:get() }
         alpha = alpha or accent[4]
         return render.color(accent[1], accent[2], accent[3], alpha)
+    end
+
+    local function gradient_text(text, color1, color2, speed, amplitude, frequency)
+        local len = #text
+        local out = ''
+        local time = globals.realtime() * speed
+        for i = 1, len do
+            local t = ( i-1 ) / ( len-1 )
+            local wave = math.sin(time + i * frequency) * amplitude * 0.5 + 0.5
+            local r = math.floor(color1[1] + (color2[1] - color1[1]) * wave)
+            local g = math.floor(color1[2] + (color2[2] - color1[2]) * wave)
+            local b = math.floor(color1[3] + (color2[3] - color1[3]) * wave)
+            local a = math.floor(color1[4] + (color2[4] - color1[4]) * wave)
+            out = out .. string.format('\a%02X%02X%02X%02X%s', r, g, b, a, text:sub(i,i))
+        end
+        return out
     end
 
     function crosshair:add_indicator(id, text, condition_fn)
@@ -2532,13 +2542,13 @@ do
     )
 
     crosshair:add_indicator('hs', 'on-shot',
-        function() return exploits:is_hideshots() end
+        function() return (exploits:is_hideshots() and not exploits:is_doubletap()) end
     )
 
     local function draw_recharge_circle(better_render, pos, radius, progress, color, thickness)
         local start_angle = -90
         local end_angle = start_angle + 360 * progress
-        better_render:circle_outline('dt_recharge', pos, color, radius, start_angle, progress, thickness)
+        better_render:circle_outline('_recharge', pos, color, radius, start_angle, progress, thickness)
     end
 
     function crosshair:render()
@@ -2579,91 +2589,96 @@ do
             return
         end
 
-        local dt_active = self.data.indicators[1].condition()
-        local hs_active = self.data.indicators[2].condition()
-        local show_dt = dt_active
-        local show_hs = (not dt_active) and hs_active
-
         local script_text = context.information.script
         local script_width = renderer.measure_text('c', script_text)
         better_render:text(
             'script_name',
             vector(screen.x + self.data.offset, screen.y + 10),
-            render.color(r, g, b, math.floor(self.data.alpha)),
+            render.color(0, 0, 0, 0),
             'c', 0,
-            script_text
+            gradient_text(script_text, {r, g, b, math.floor(self.data.alpha)}, {34, 34, 35, math.floor(self.data.alpha)}, 2, 1, 0.5)
         )
 
         local main_indicators = { }
-        if show_dt then table.insert(main_indicators, self.data.indicators[1]) end
-        if show_hs then table.insert(main_indicators, self.data.indicators[2]) end
-
-        local total_width = 0
-        for i, indicator in ipairs(main_indicators) do
-            total_width = total_width + renderer.measure_text('c', indicator.text)
-            if i < #main_indicators then total_width = total_width + 10 end
+        local active_index = nil
+        for i, ind in ipairs(self.data.indicators) do
+            if ind.condition() and not active_index then
+                active_index = i
+            end
         end
 
-        local x_offset = screen.x + self.data.offset_ind - total_width/2
-        local y_pos = screen.y + 20
-
-        for i, indicator in ipairs(main_indicators) do
-            local is_active = indicator.condition()
-            local anim = self.data.anim[indicator.id] or 0
-            anim = is_active and math.min(anim + globals.frametime() * 6, 1) or math.max(anim - globals.frametime() * 6, 0)
-            self.data.anim[indicator.id] = anim
-
-            local color = render.color(r, g, b, self.data.alpha)
-            local text_width = renderer.measure_text('c', indicator.text)
-            local text_color = render.color(color.r, color.g, color.b, math.floor(self.data.alpha * (0.3 + 0.7 * anim)))
-
-            better_render:text(indicator.id,
-                vector(x_offset, y_pos),
-                text_color,
-                'b', 0,
-                indicator.text
-            )
-
-            if is_active then
-                local defensive = exploits:in_defensive()
-                local target_thickness = defensive and 3 or 1
-                self.data.recharge_tickness = motion.lerp(self.data.recharge_tickness, target_thickness, 0.2)
-                self.data.recharge_anim = motion.lerp(self.data.recharge_anim, exploits:in_recharge() and 0 or 1, 0.2)
-                local circle_pos = vector(x_offset + text_width + 5, y_pos + 7)
-                draw_recharge_circle(
-                    better_render,
-                    circle_pos,
-                    3,
-                    self.data.recharge_anim,
-                    get_accent_color(math.floor(self.data.alpha * 0.8)),
-                    self.data.recharge_tickness
-                )
+        for i, ind in ipairs(self.data.indicators) do
+            local target = (i == active_index) and 1 or 0
+            local _anim = self.data.anim[ind.id] or 0
+            _anim = motion.lerp(_anim, target, globals.frametime() * 14)
+            self.data.anim[ind.id] = _anim
+            if _anim > 0.01 then
+                table.insert(main_indicators, {indicator = ind, anim = _anim})
             end
+        end
 
-            x_offset = x_offset + text_width + 24
+        if #main_indicators > 0 then
+            local y_pos = screen.y + 20
+            for _, obj in ipairs(main_indicators) do
+                local indicator = obj.indicator
+                local anim = obj.anim
+                local text_width = renderer.measure_text('c', indicator.text)
+                local color = render.color(r, g, b, math.floor(self.data.alpha * anim))
+                local x_offset = screen.x + self.data.offset - text_width / 2
+
+                better_render:text(indicator.id,
+                    vector(x_offset, y_pos),
+                    color,
+                    'b', 0,
+                    indicator.text
+                )
+        
+                if indicator.condition() then
+                    local defensive = exploits:in_defensive()
+                    local target_thickness = defensive and 3 or 1
+                    self.data.recharge_tickness = motion.lerp(self.data.recharge_tickness, target_thickness, 0.2)
+                    self.data.recharge_anim = motion.lerp(self.data.recharge_anim, exploits:in_recharge() and 0 or 1, 0.2)
+                    local circle_pos = vector(x_offset + text_width + 5, y_pos + 7)
+                    draw_recharge_circle(
+                        better_render,
+                        circle_pos,
+                        3,
+                        self.data.recharge_anim,
+                        get_accent_color(math.floor(self.data.alpha * anim)),
+                        self.data.recharge_tickness
+                    )
+                end
+            end
         end
 
         local other_active = { }
         for _, indicator in ipairs(self.data.other) do
-            if indicator.condition() then table.insert(other_active, indicator) end
+            local is_active = indicator.condition()
+            local _anim = self.data.anim_other[indicator.id] or 0
+            _anim = motion.lerp(_anim, is_active and 1 or 0, globals.frametime() * 8)
+            self.data.anim_other[indicator.id] = _anim
+            if _anim > 0.01 then
+                table.insert(other_active, {indicator = indicator, anim = _anim})
+            end
         end
+
         if #other_active > 0 then
             local total_width_extra = 0
-            for i, indicator in ipairs(other_active) do
-                total_width_extra = total_width_extra + renderer.measure_text('c', indicator.text)
+            for i, obj in ipairs(other_active) do
+                total_width_extra = total_width_extra + renderer.measure_text('c', obj.indicator.text)
                 if i < #other_active then total_width_extra = total_width_extra + 10 end
             end
-            local x_offset_extra = screen.x + self.data.offset
+            local x_offset_extra = screen.x + self.data.offset - total_width_extra / 2
             local y_pos_extra = y_pos + 22
-            for _, indicator in ipairs(other_active) do
-                local anim = self.data.anim_other[indicator.id] or 0
-                anim = math.min(anim + globals.frametime() * 6, 1)
-                self.data.anim_other[indicator.id] = anim
+            for _, obj in ipairs(other_active) do
+                local indicator = obj.indicator
+                local anim = obj.anim
                 local color = render.color(r, g, b, self.data.alpha)
                 local text_width = renderer.measure_text('c', indicator.text)
-                local text_color = render.color(color.r, color.g, color.b, math.floor(self.data.alpha * (0.3 + 0.7 * anim)))
+                local text_color = render.color(color.r, color.g, color.b, math.floor(self.data.alpha * anim))
+                local y_anim_offset = (1 - anim) * 10
                 better_render:text('extra_'..indicator.id,
-                    vector(x_offset_extra, y_pos_extra),
+                    vector(x_offset_extra, y_pos_extra + y_anim_offset),
                     text_color,
                     'c', 0,
                     indicator.text
