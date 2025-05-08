@@ -308,7 +308,7 @@ local interfaces do
 end
 
 local function translate(english_text, russian_text)
-    local is_russian = interfaces.system:command_line_param('language russian')
+    local is_russian = cvar.cl_language:get_string() == 'russian'
     return is_russian and russian_text or english_text
 end
 
