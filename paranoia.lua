@@ -777,10 +777,6 @@ do
         return server_states[#server_states - 1], server_states[#server_states]
     end
     
-    function animation_fix:lerp(v1, v2, t)
-        return v1 + (v2 - v1) * t
-    end
-    
     function animation_fix:apply_interpolated_state(state1, state2, t)
         local animations_select = menu.general.animations.player:get()
         if not array_contains(animations_select, translate('Interpolate', 'Интерполяция')) then
@@ -813,10 +809,10 @@ do
                 local layer2 = state2.layers[layer_idx]
                 
                 -- if the layer is the same as the previous one, don't interpolate
-                layer.cycle = (layer1.cycle == layer2.cycle) and layer2.cycle or self:lerp(layer1.cycle, layer2.cycle, t)
-                layer.weight = (layer1.weight == layer2.weight) and layer2.weight or self:lerp(layer1.weight, layer2.weight, t)
-                layer.playback_rate = (layer1.playback_rate == layer2.playback_rate) and layer2.playback_rate or self:lerp(layer1.playback_rate, layer2.playback_rate, t)
-                layer.sequence = (layer1.sequence == layer2.sequence) and layer2.sequence or self:lerp(layer1.sequence, layer2.sequence, t)
+                layer.cycle = (layer1.cycle == layer2.cycle) and layer2.cycle or motion.lerp(layer1.cycle, layer2.cycle, t)
+                layer.weight = (layer1.weight == layer2.weight) and layer2.weight or motion.lerp(layer1.weight, layer2.weight, t)
+                layer.playback_rate = (layer1.playback_rate == layer2.playback_rate) and layer2.playback_rate or motion.lerp(layer1.playback_rate, layer2.playback_rate, t)
+                layer.sequence = (layer1.sequence == layer2.sequence) and layer2.sequence or motion.lerp(layer1.sequence, layer2.sequence, t)
             end
         end
     end
@@ -858,7 +854,7 @@ do
         end
         
         local t = (current_time - state1.time) / time_diff
-        t = math.min(1, math.max(0, t))
+        t = motion.clamp(t, 0, 1)
     
         self:apply_interpolated_state(state1, state2, t)
     end
